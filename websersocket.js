@@ -1,3 +1,4 @@
+
 import {
     f_websersocket_serve,
     f_v_before_return_response__fileserver
@@ -76,6 +77,13 @@ let f_handler = async function(o_request){
                                     }
                                 )
                                 o_state?.o_js__a_o_msg?._f_render()
+                                window.setTimeout(
+                                    ()=>{
+                                        let o = document.querySelector('.a_o_msg');
+                                        o.scrollTo(0, o.scrollHeight)
+                                    },
+                                    100
+                                )
                             `, 
                             []
                         )
@@ -89,6 +97,20 @@ let f_handler = async function(o_request){
 
         return o_response;
     }
+    let o_url = new URL(o_request.url);
+    if(o_url.pathname == '/'){
+        return new Response(
+            await Deno.readTextFile(
+                `${s_path_folder_current}/localhost/client.html`
+            ),
+            { 
+                headers: {
+                    'Content-type': "text/html"
+                }
+            }
+        );
+    }
+
 
     return f_v_before_return_response__fileserver(
         o_request,
