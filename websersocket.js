@@ -6,6 +6,7 @@ import {
 let s_path_file_current = new URL(import.meta.url).pathname;
 let s_path_folder_current = s_path_file_current.split('/').slice(0, -1).join('/');
 // console.log(s_path_folder_current)
+const b_deno_deploy = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined;
 
 class O_ws_client{
     constructor(
@@ -27,6 +28,8 @@ class O_msg {
         this.a_v_param = a_v_param
     }
 }
+
+
 let f_handler = async function(o_request){
     // important if the connection is secure (https),
     // the socket has to be opened with the wss:// protocol
@@ -102,11 +105,14 @@ await f_websersocket_serve(
             s_hostname: 'localhost',
             f_v_before_return_response: f_handler
         },
-        {
-            n_port: 8443,
-            b_https: true,
-            s_hostname: 'localhost',
-            f_v_before_return_response: f_handler
-        }
+        ...[
+            (!b_deno_deploy) ? {
+                n_port: 8443,
+                b_https: true,
+                s_hostname: 'localhost',
+                f_v_before_return_response: f_handler
+            } : false
+        ].filter(v=>v)
+        
     ]
 )
