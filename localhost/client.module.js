@@ -106,34 +106,42 @@ let f_s_video_id__from_s_url = function(s_url){
     }
   }
 
-let n_id_raf = 0;
-let n_ms_max = 1000/24;
-let n_ms_wpn = 0;
-let n_ms_wpn_last = 0;
-let f_raf = function(){
-    n_id_raf = window.requestAnimationFrame(f_raf);
-    //
-    n_ms_wpn = window.performance.now();
-    if((n_ms_wpn - n_ms_wpn_last) > n_ms_max){
-        o_state?.o_js__playhead?._f_update?.()
-        n_ms_wpn_last = n_ms_wpn
-        if(o_state.b_yt_video_playing){
-            // the sliders could get switched up by the user
-            let n_ms_loop_max = Math.max(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
-            let n_ms_loop_min = Math.min(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
-            if(
-                window?.o_state?.o_youtube_iframe_api_player?.getCurrentTime?.() * 1000 > n_ms_loop_max
-            ){
-                window.o_state.o_youtube_iframe_api_player.seekTo(
-                    n_ms_loop_min/1000
-                );
-            }
+  let f_update_stuff = function(){
+    o_state?.o_js__playhead?._f_update?.()
+    // n_ms_wpn_last = n_ms_wpn
+    if(o_state.b_yt_video_playing){
+        // the sliders could get switched up by the user
+        let n_ms_loop_max = Math.max(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
+        let n_ms_loop_min = Math.min(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
+        if(
+            window?.o_state?.o_youtube_iframe_api_player?.getCurrentTime?.() * 1000 > n_ms_loop_max
+        ){
+            window.o_state.o_youtube_iframe_api_player.seekTo(
+                n_ms_loop_min/1000
+            );
         }
-        
     }
-}
-n_id_raf = window.requestAnimationFrame(f_raf);
+  }
+  let n_ms_max = 1000/24;
+// let n_id_raf = 0;
+// let n_ms_wpn = 0;
+// let n_ms_wpn_last = 0;
+// let f_raf = function(){
+//     n_id_raf = window.requestAnimationFrame(f_raf);
+//     //
+//     n_ms_wpn = window.performance.now();
+//     if((n_ms_wpn - n_ms_wpn_last) > n_ms_max){
+//         f_update_stuff()
+//     }
+// }
+// n_id_raf = window.requestAnimationFrame(f_raf);
+// request animation frame is tied to the rendering of the browser, if the tab is not active the rendering will occur very occasionally and sporadic which breaks the detection of the exceeding
+// of the  loop end and thus the video loop, extremly annoying !
 
+let n_id_interval = 0;
+n_id_interval = window.setInterval(()=>{
+    f_update_stuff()
+}, n_ms_max)
 
 let o_state = {
     s_url: '', 
