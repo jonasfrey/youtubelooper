@@ -1,5 +1,11 @@
 
 import {
+    f_o_js as f_o_js__tooltip
+} from "https://deno.land/x/f_o_html_from_o_js@2.8/localhost/jsh_modules/tooltip/mod.js"
+
+
+
+import {
     f_display_test_selection_or_run_selected_test_and_print_summary,
     f_o_test
 } from "https://deno.land/x/deno_test_server_and_client_side@1.1/mod.js"
@@ -15,7 +21,7 @@ import {
     O_vec2
 } from "https://deno.land/x/vector@0.8/mod.js"
 
-let f_s_time_from_n_ms = function(n_ms){
+let f_a_n_hmsms_from_n_ms = function(n_ms){
     let n_ms_mod = n_ms % 1000;
     let n_seconds = n_ms / 1000
     let n_seconds_mod = n_seconds % 60;
@@ -23,6 +29,20 @@ let f_s_time_from_n_ms = function(n_ms){
     let n_minutes_mod = n_minutes % 60
     let n_hours = n_minutes / 60
     let n_hours_mod = n_hours 
+    return [
+        n_hours, 
+        n_minutes_mod, 
+        n_seconds_mod, 
+        n_ms_mod
+    ]
+}
+let f_s_time_from_n_ms = function(n_ms){
+    let [ 
+        n_hours,
+        n_minutes_mod,
+        n_seconds_mod,
+        n_ms_mod
+    ] = f_a_n_hmsms_from_n_ms(n_ms);
     return [
         (parseInt(n_hours) > 0) ? parseInt(n_hours).toString().padStart(2, '0') : false,
         (parseInt(n_minutes_mod) > 0) ? parseInt(n_minutes_mod).toString().padStart(2, '0') : false,
@@ -67,6 +87,12 @@ f_add_css(
         width:80%;
         margin: 0 auto;
     }
+    .loop_position_inputs input{
+        width: 50px;
+    }
+    .timeline {
+        background: rgba(0,0,0,0.2);
+    }
     .cursor{
         height: 100%;
         left: 50%;
@@ -107,9 +133,10 @@ let f_s_video_id__from_s_url = function(s_url){
   }
 
   let f_update_stuff = function(){
+
     o_state?.o_js__playhead?._f_update?.()
-    // n_ms_wpn_last = n_ms_wpn
     if(o_state.b_yt_video_playing){
+        o_state.n_ms__tmp = window?.o_state?.o_youtube_iframe_api_player?.getCurrentTime?.() * 1000
         // the sliders could get switched up by the user
         let n_ms_loop_max = Math.max(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
         let n_ms_loop_min = Math.min(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
@@ -148,9 +175,12 @@ let o_state = {
     s_video_id: null, 
     n_ms__tmp: 0,
     n_ms__start_loop: 0,
-    n_ms__end_loop: 0, 
+    n_ms__end_loop: 10000, 
     b_pointer_down_start: false, 
     b_pointer_down_end: false, 
+    b_pointer_over_start_end: false, 
+    b_pointer_over_start_end_last: false, 
+    o_state_for__tooltip: {}
 }
 window.o_state = o_state
 
@@ -210,7 +240,9 @@ window.onYouTubeIframeAPIReady = function() {
     },
     events: {
       'onReady': onPlayerReady,
-      'onStateChange': onPlayerStateChange
+      'onStateChange': onPlayerStateChange, 
+    //   'onSeek': ()=>{alert('asdf');console.log('seek')}, //not existing
+    //   'onSeeking': ()=>{alert('asdf');console.log('seeking')}
     }
   });
 
@@ -230,25 +262,28 @@ function onPlayerReady(event) {
 // //    The function indicates that when playing a video (state=1),
 // //    the player should play for six seconds and then stop.
 var done = false;
-function onPlayerStateChange(event) {
-    console.log('state change')
+function onPlayerStateChange(o_e) {
 
-    o_state.b_yt_video_playing = event.data == YT.PlayerState.PLAYING;
+    if(o_e.data == YT.PlayerState.BUFFERING){}
+    if(o_e.data == YT.PlayerState.CUED){}
+    if(o_e.data == YT.PlayerState.ENDED){}
+    if(o_e.data == YT.PlayerState.PAUSED){}
+    if(o_e.data == YT.PlayerState.PLAYING){}
+    if(o_e.data == YT.PlayerState.UNSTARTED){}
+    o_state.b_yt_video_playing = o_e.data == YT.PlayerState.PLAYING;
+    o_state.b_yt_video_paused = o_e.data == YT.PlayerState.PAUSED;
 
     window.setTimeout(()=>{
-        o_state[`o_js__start_loop`]._f_render()
-        o_state[`o_js__end_loop`]._f_render()
+        ['start', 'end'].forEach(s=>{
+            o_state[`o_js__${s}_loop`]._f_render()
+            o_state[`o_js__inputs_${s}_loop`]._f_render();
+        })
     },100)
-//   if (event.data == YT.PlayerState.PLAYING && !done) {
-//     setTimeout(stopVideo, 6000);
-//     done = true;
-//   }
+    console.log({
+        s: 'state change', 
+        o_e
+    })
 }
-// function stopVideo() {
-//   player.stopVideo();
-// }
-
-
 
 document.body.appendChild(
     await f_o_html__and_make_renderable(
@@ -256,6 +291,12 @@ document.body.appendChild(
             s_tag: 'div', 
             class: "app",
             a_o: [
+                
+                f_o_js__tooltip(o_state.o_state_for__tooltip),
+                {
+                    s_tag: "label", 
+                    innerText: "video url"
+                },
                 {
                     s_tag: "input", 
                     style: "width: 100%",
@@ -264,7 +305,8 @@ document.body.appendChild(
                         let s_id = f_s_video_id__from_s_url(o_state.s_url);
                         f_update_video_from_s_id(s_id);
                         // o_state?.o_js__video?._f_render();
-                    }
+                    }, 
+                    data_tooltip: 'enter the video url here'
                 },
                 {
                     style: "width: 100%",
@@ -293,6 +335,9 @@ document.body.appendChild(
                 // ).o_js__video,
                 {
                     class: "timeline", 
+                    data_tooltip: [
+                        `click to change start or end`, 
+                    ].join('<br>'),
                     style: 'width:100%;position:relative;height:2rem',
                     a_o: [
                         ...['start', 'end'].map(s=>{
@@ -302,6 +347,10 @@ document.body.appendChild(
                                     [`o_js__${s}_loop`]: {
                                         f_o_jsh:()=>{
                                             return {
+                                                data_tooltip: [
+                                                    `${s} of loop`, 
+                                                    `drag to change`, 
+                                                ].join('<br>'),
                                                 style: [
                                                     'height: 100%',
                                                     'width:3rem',
@@ -311,7 +360,10 @@ document.body.appendChild(
                                                     'position: absolute',
                                                     `transform: translate(-50%, 0%)`
                                                 ].join(';'), 
-                                                class: "playhead", 
+                                                class: [
+                                                    `playhead`, 
+                                                    s
+                                                ].join(' '),
                                                 onpointerdown: ()=>{
                                                     o_state[`b_pointer_down_${s}`] = true
                                                     console.log(o_state[`b_pointer_down_${s}`])
@@ -356,8 +408,159 @@ document.body.appendChild(
                                 }
                             }
                         ).o_js__playhead,
-                    ]
+                    ], 
+                    onpointerdown: (o_e)=>{
+
+                        if(o_state?.o_youtube_iframe_api_player?.playerInfo?.duration){
+
+                            let o_trn_nor = f_o_trn__relative_to_o_html__nor(
+                                new O_vec2(o_e.clientX,o_e.clientY),
+                                document.querySelector('.timeline')
+                            );
+                            let n_ms = o_trn_nor.n_x * o_state?.o_youtube_iframe_api_player?.playerInfo?.duration*1000.;
+                            console.log(n_ms);
+                            
+                            let o_closer = new Array("start", "end").map(s => {
+                                return {
+                                    s: s, 
+                                    n_ms_delta:Math.abs(o_state[`n_ms__${s}_loop`] - n_ms)
+                                }
+                            }).sort((o1,o2)=>{
+                                return o1.n_ms_delta - o2.n_ms_delta
+                            })[0];
+                            console.log(o_closer)
+                            
+                            o_state[`n_ms__${o_closer.s}_loop`] = n_ms;
+                            o_state[`o_js__${o_closer.s}_loop`]._f_render()
+                            o_state[`o_js__inputs_${o_closer.s}_loop`]._f_render();
+                        }
+
+                    }
                 },
+                {
+                    class: 'loop_position_inputs',
+                    style: [
+                        `display: flex;`,
+                        // `align-items: center`,
+                        `flex-direction: row`,
+                        `justify-content: space-between`
+                    ].join(';'),
+                    a_o: [
+                        ...['start', 'end'].map(s=>{
+                            return Object.assign(
+                                o_state, 
+                                {
+                                    [`o_js__inputs_${s}_loop`]: {
+                                        f_o_jsh:()=>{
+                                            let [ 
+                                                n_hours,
+                                                n_minutes_mod,
+                                                n_seconds_mod,
+                                                n_ms_mod
+                                            ] = f_a_n_hmsms_from_n_ms(o_state[`n_ms__${s}_loop`]);
+                                            n_hours = parseInt(n_hours)
+                                            n_minutes_mod = parseInt(n_minutes_mod)
+                                            n_seconds_mod = parseInt(n_seconds_mod)
+                                            n_ms_mod = parseInt(n_ms_mod)
+                                            return {
+                                                a_o: [
+                                                    {
+                                                        innerText: "Hours Minutes Seconds Milliseconds H:M:S:MS"
+                                                    },
+                                                    {
+                                                        style: [
+                                                            `display: flex;`,
+                                                            `align-items: center;`,
+                                                        ].join(';'),
+                                                        a_o: [
+                                                            {
+                                                                s_tag: 'input', 
+                                                                type: 'number',
+                                                                value: (n_hours), 
+                                                                oninput: (o_e)=>{
+                                                                    n_hours = parseInt(o_e.target.value);
+                                                                    o_state[`n_ms__${s}_loop`] = 
+                                                                        n_hours * 1000*60*60
+                                                                        + n_minutes_mod * 1000 * 60
+                                                                        + n_seconds_mod * 1000
+                                                                        + n_ms_mod 
+                                                                    o_state[`o_js__${s}_loop`]._f_render()
+
+                                                                }
+                                                            }, 
+                                                            {innerText: ":"},
+                                                            {
+                                                                s_tag: 'input', 
+                                                                type: 'number',
+                                                                value: (n_minutes_mod), 
+                                                                oninput: (o_e)=>{
+                                                                    n_minutes_mod = parseInt(o_e.target.value);
+                                                                    o_state[`n_ms__${s}_loop`] = 
+                                                                        n_hours * 1000*60*60
+                                                                        + n_minutes_mod * 1000 * 60
+                                                                        + n_seconds_mod * 1000
+                                                                        + n_ms_mod 
+                                                                    o_state[`o_js__${s}_loop`]._f_render()
+
+                                                                }
+                                                            }, 
+                                                            {innerText: ":"},
+                                                            {
+                                                                s_tag: 'input', 
+                                                                type: 'number',
+                                                                value: (n_seconds_mod), 
+                                                                oninput: (o_e)=>{
+                                                                    n_seconds_mod = parseInt(o_e.target.value);
+                                                                    o_state[`n_ms__${s}_loop`] = 
+                                                                        n_hours * 1000*60*60
+                                                                        + n_minutes_mod * 1000 * 60
+                                                                        + n_seconds_mod * 1000
+                                                                        + n_ms_mod 
+                                                                    o_state[`o_js__${s}_loop`]._f_render()
+
+                                                                }
+                                                            }, 
+                                                            {innerText: ":"},
+                                                            {
+                                                                s_tag: 'input', 
+                                                                type: 'number',
+                                                                step: 15,
+                                                                value: (n_ms_mod), 
+                                                                oninput: (o_e)=>{
+                                                                    if(o_e.target.value < 0){
+                                                                        o_e.target.value = 1000;
+                                                                    }
+                                                                    if(o_e.target.value > 1000){
+                                                                        o_e.target.value = 0;
+                                                                    }
+                                                                    n_ms_mod = parseInt(o_e.target.value);
+
+                                                                    o_state[`n_ms__${s}_loop`] = 
+                                                                        n_hours * 1000*60*60
+                                                                        + n_minutes_mod * 1000 * 60
+                                                                        + n_seconds_mod * 1000
+                                                                        + n_ms_mod 
+                                                                    o_state[`o_js__${s}_loop`]._f_render()
+
+                                                                    window.o_state.o_youtube_iframe_api_player.seekTo(
+                                                                        o_state[`n_ms__${s}_loop`]/1000.
+                                                                    );
+                                                                    window.o_state.o_youtube_iframe_api_player.pauseVideo()
+
+                                                                }
+                                                            }, 
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                }
+                            )[`o_js__inputs_${s}_loop`]
+                        }),
+                    ]
+
+                }
             ]
         }
     )
@@ -368,13 +571,24 @@ document.addEventListener('pointerup', ()=>{
 })
 document.addEventListener('pointermove', (o_e)=>{
 
+
     let o_trn_nor = f_o_trn__relative_to_o_html__nor(
         new O_vec2(o_e.clientX,o_e.clientY),
         document.querySelector('.timeline')
     )
+    o_state.b_pointer_over_start_end = false;
     // console.log(o_trn_nor)
     new Array("start", "end").forEach(s => {
-        console.log(o_state[`b_pointer_down_${s}`])
+
+        if(o_e.target.closest(`.playhead.${s}`)){
+            o_state.b_pointer_over_start_end = true;
+
+            window.o_state.o_youtube_iframe_api_player.seekTo(
+                o_state[`n_ms__${s}_loop`]/1000.
+            );
+            o_state.b_yt_video_playing_last = o_state.b_yt_video_playing
+            window.o_state.o_youtube_iframe_api_player.pauseVideo()
+        }
         if(o_state[`b_pointer_down_${s}`]){
             let n_max = o_state?.o_youtube_iframe_api_player?.playerInfo?.duration
             o_state[`n_ms__${s}_loop`] = Math.max(
@@ -392,6 +606,23 @@ document.addEventListener('pointermove', (o_e)=>{
             window.o_state.o_youtube_iframe_api_player.pauseVideo()
         }
     });
+    if(
+        !o_state.b_pointer_over_start_end && o_state.b_pointer_over_start_end_last 
+    ){
+
+        window.o_state.o_youtube_iframe_api_player.seekTo(
+            o_state.n_ms__tmp / 1000.
+        );
+
+        if(o_state.b_yt_video_playing_last){
+            window.o_state.o_youtube_iframe_api_player.playVideo()
+        }else{
+            window.o_state.o_youtube_iframe_api_player.pauseVideo()
+        }
+
+    }
+    o_state.b_pointer_over_start_end_last = o_state.b_pointer_over_start_end;
+    
     // let n_x_nor = o_e.clientX / window.innerWidth;
     // if(window?.o_state?.o_youtube_iframe_api_player?.playerInfo?.videoData?.video_id){
     //     let n_max = window.o_state.o_youtube_iframe_api_player.getDuration();
@@ -401,5 +632,4 @@ document.addEventListener('pointermove', (o_e)=>{
     // }
     // window.o_state.o_youtube_iframe_api_player.stopVideo() 
 })
-
 
